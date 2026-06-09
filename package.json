@@ -1,0 +1,24 @@
+{
+  "name": "doc-diff-vision-pro",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "diff-match-patch": "^1.0.5",
+    "mammoth": "https://github.com/721806280/mammoth.js/archive/refs/tags//v1.12.0-rc2.tar.gz",
+    "vue": "^3.5.35"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vue-tsc": "^3.3.4"
+  }
+}
