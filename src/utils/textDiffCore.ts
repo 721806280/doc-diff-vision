@@ -7,6 +7,8 @@ diffMatchPatch.Diff_Timeout = 0;
 export const DIFF_DELETE = -1 satisfies DiffOperation;
 export const DIFF_EQUAL = 0 satisfies DiffOperation;
 export const DIFF_INSERT = 1 satisfies DiffOperation;
+const MIN_SIMILARITY = 0;
+const MAX_SIMILARITY = 1;
 const DIFF_ID_PREFIX = 'diff-';
 
 export function diffId(index: number): string {
@@ -89,7 +91,8 @@ function buildDiffSummary(
     total: groupOperations.size,
     inserted: 0,
     deleted: 0,
-    modified: 0
+    modified: 0,
+    similarity: calculateSimilarity(diffs, originalLength, revisedLength)
   };
 
   for (const operations of groupOperations.values()) {
@@ -106,6 +109,40 @@ function buildDiffSummary(
   }
 
   return summary;
+}
+
+function calculateSimilarity(diffs: DiffTuple[], originalLength: number, revisedLength: number): number {
+  const baselineLength = Math.max(originalLength, revisedLength);
+  if (baselineLength === 0) return MAX_SIMILARITY;
+
+  const editDistance = estimateEditDistance(diffs);
+  const similarity = 1 - (editDistance / baselineLength);
+  return clampSimilarity(similarity);
+}
+
+function estimateEditDistance(diffs: DiffTuple[]): number {
+  let distance = 0;
+  let insertions = 0;
+  let deletions = 0;
+
+  for (const [operation, text] of diffs) {
+    if (operation === DIFF_INSERT) {
+      insertions += text.length;
+    } else if (operation === DIFF_DELETE) {
+      deletions += text.length;
+    } else {
+      distance += Math.max(insertions, deletions);
+      insertions = 0;
+      deletions = 0;
+    }
+  }
+
+  return distance + Math.max(insertions, deletions);
+}
+
+function clampSimilarity(value: number): number {
+  if (!Number.isFinite(value)) return MIN_SIMILARITY;
+  return Math.min(MAX_SIMILARITY, Math.max(MIN_SIMILARITY, value));
 }
 
 function getGapThreshold(granularity: DiffGranularity): number {

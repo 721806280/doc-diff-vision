@@ -4,9 +4,15 @@
       <div class="radar-dot" :class="{ clean: summary.total === 0 }"></div>
       <template v-if="summary.total === 0">
         <span class="pure-text">✅ 比对完成：当前设置下，两份文档未发现文本差异。</span>
+        <span class="summary-chip similarity" title="基于当前归一化文本的编辑距离计算">
+          相似度 <strong>{{ similarityPercent }}</strong>
+        </span>
       </template>
       <template v-else>
         <span class="pure-text">🔎 比对完成：发现 <strong class="diff-count">{{ summary.total }}</strong> 处文本差异</span>
+        <span class="summary-chip similarity" title="基于当前归一化文本的编辑距离计算">
+          相似度 <strong>{{ similarityPercent }}</strong>
+        </span>
         <span class="summary-chip modified">修改 {{ summary.modified }}</span>
         <span class="summary-chip inserted">新增 {{ summary.inserted }}</span>
         <span class="summary-chip deleted">删除 {{ summary.deleted }}</span>
@@ -68,12 +74,20 @@ defineEmits<{
   'toggle-sync': [];
 }>();
 
+const percentFormatter = new Intl.NumberFormat('zh-CN', {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+});
+
 const progressPercent = computed(() => {
   if (props.summary.total <= 0) return 0;
   return Math.round((props.currentDiffIndex / props.summary.total) * 100);
 });
 
 const progressWidth = computed(() => `${progressPercent.value}%`);
+
+const similarityPercent = computed(() => percentFormatter.format(props.summary.similarity));
 </script>
 
 <style scoped>
@@ -156,6 +170,17 @@ const progressWidth = computed(() => `${progressPercent.value}%`);
   color: var(--accent);
   border-color: rgba(99, 102, 241, 0.2);
   background: rgba(99, 102, 241, 0.08);
+}
+
+.summary-chip.similarity {
+  color: #0f766e;
+  border-color: rgba(20, 184, 166, 0.24);
+  background: rgba(20, 184, 166, 0.09);
+}
+
+.summary-chip.similarity strong {
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-weight: 750;
 }
 
 .summary-chip.inserted {

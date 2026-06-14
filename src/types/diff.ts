@@ -9,6 +9,7 @@ export type DiffSummary = {
   inserted: number;
   deleted: number;
   modified: number;
+  similarity: number;
 };
 
 export type DiffWorkerRequest = {

@@ -125,7 +125,8 @@ const EMPTY_DIFF_SUMMARY: DiffSummary = {
   total: 0,
   inserted: 0,
   deleted: 0,
-  modified: 0
+  modified: 0,
+  similarity: 1
 };
 const MAX_DOCX_SIZE = 25 * 1024 * 1024;
 
