@@ -18,7 +18,7 @@
             {{ warnings.length }}
           </span>
           <div class="warning-popover" role="tooltip">
-            <strong>转换提示</strong>
+            <strong>{{ i18n.documentPane.conversionWarnings }}</strong>
             <ul>
               <li v-for="(warning, index) in warnings" :key="index">{{ warning }}</li>
             </ul>
@@ -26,7 +26,7 @@
         </div>
         <label class="reupload-trigger" :title="reuploadTitle" :aria-label="reuploadTitle">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          <span>更换文档</span>
+          <span>{{ i18n.documentPane.changeDocument }}</span>
           <input type="file" accept=".docx" @change="handleFileInput">
         </label>
       </div>
@@ -53,19 +53,19 @@
         </div>
         <h3>{{ uploadTitle }}</h3>
         <p>{{ uploadHint }}</p>
-        <small>支持点击选择或拖拽上传</small>
+        <small>{{ i18n.documentPane.uploadSupport }}</small>
         <input type="file" accept=".docx" @change="handleFileInput">
       </label>
 
       <div v-else-if="!hasResult" class="pane-waiting-zone">
         <div v-if="status === 'parsing' || comparing" class="loading-spinner-wrapper">
           <div class="spinner-large"></div>
-          <p>{{ status === 'parsing' ? '正在解析文档...' : '正在分析文档差异...' }}</p>
+          <p>{{ status === 'parsing' ? i18n.documentPane.parsing : i18n.documentPane.comparing }}</p>
         </div>
         <div v-else-if="status === 'error'" class="state-card error" role="alert">
           <div class="state-icon">!</div>
           <div>
-            <strong>文档处理失败</strong>
+            <strong>{{ i18n.documentPane.failedTitle }}</strong>
             <p>{{ errorMessage }}</p>
           </div>
         </div>
@@ -85,6 +85,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from '@/i18n';
 
 type DocumentPaneStatus = 'idle' | 'parsing' | 'ready' | 'error';
 
@@ -117,17 +118,19 @@ const emit = defineEmits<{
 
 const viewport = ref<HTMLElement | null>(null);
 const dragging = ref(false);
+const { locale, messages: i18n } = useI18n();
 
 const statusLabel = computed(() => {
+  const statusText = i18n.value.documentPane.status;
   switch (props.status) {
     case 'parsing':
-      return '解析中';
+      return statusText.parsing;
     case 'ready':
-      return '已就绪';
+      return statusText.ready;
     case 'error':
-      return '处理失败';
+      return statusText.error;
     default:
-      return '待上传';
+      return statusText.idle;
   }
 });
 
@@ -140,13 +143,19 @@ const fileSizeLabel = computed(() => {
 const documentMetaLabel = computed(() => {
   const parts = [fileSizeLabel.value];
 
-  if (props.textLength > 0) parts.push(`${formatCount(props.textLength)} 字`);
-  if (props.imageCount > 0) parts.push(`${props.imageCount} 张图`);
+  if (props.textLength > 0) {
+    parts.push(i18n.value.documentPane.textLength(formatCount(props.textLength), props.textLength));
+  }
+
+  if (props.imageCount > 0) {
+    parts.push(i18n.value.documentPane.imageCount(formatCount(props.imageCount), props.imageCount));
+  }
+
   return parts.filter(Boolean).join(' · ');
 });
 
 function formatCount(value: number): string {
-  return new Intl.NumberFormat('zh-CN').format(value);
+  return new Intl.NumberFormat(locale.value).format(value);
 }
 
 function handleFileInput(event: Event): void {

@@ -28,17 +28,22 @@ export type ParsedDocx = {
   warnings: string[];
 };
 
-export async function parseDocx(file: File): Promise<ParsedDocx> {
+export type ParseDocxOptions = {
+  embeddedImageAlt?: string;
+  emptyDocumentHtml?: string;
+};
+
+export async function parseDocx(file: File, options: ParseDocxOptions = {}): Promise<ParsedDocx> {
   const mammoth: MammothApi = await import('mammoth');
 
   try {
     const arrayBuffer = await file.arrayBuffer();
     const convertImage = mammoth.images.imgElement(async (image) => ({
       src: `data:${image.contentType};base64,${await image.read('base64')}`,
-      alt: '文档嵌入图片'
+      alt: options.embeddedImageAlt ?? 'Embedded document image'
     }));
     const result = await mammoth.convertToHtml({ arrayBuffer }, { convertImage });
-    const html = result.value ? result.value.trim() : '<p>（空文档）</p>';
+    const html = result.value ? result.value.trim() : options.emptyDocumentHtml ?? '<p>(Empty document)</p>';
     const sanitizedHtml = await sanitizeDocumentHtml(html);
 
     return {
@@ -47,7 +52,7 @@ export async function parseDocx(file: File): Promise<ParsedDocx> {
       warnings: collectMammothWarnings((result as MammothResultWithMessages).messages)
     };
   } catch (error) {
-    console.error('[DOCX解析错误]', error);
+    console.error('[DOCX parse error]', error);
     throw error;
   }
 }

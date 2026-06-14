@@ -11,7 +11,7 @@
 
     <div v-if="compareError" class="app-error-banner" role="alert">
       <span>{{ compareError }}</span>
-      <button type="button" @click="retryCompare">重新比对</button>
+      <button type="button" @click="retryCompare">{{ i18n.app.retryCompare }}</button>
     </div>
 
     <DiffNavigator
@@ -28,17 +28,17 @@
       <DocumentPane
         ref="paneA"
         side-class="side-original"
-        title="基准文档 (A)"
+        :title="i18n.app.documents.A.title"
         :file-name="documents.A.name"
         :file-size="documents.A.size"
         :text-length="documents.A.textLength"
         :image-count="documents.A.imageCount"
         :warnings="documents.A.warnings"
-        empty-label="未上传基准文档"
-        reupload-title="重新选择基准文档"
-        upload-title="上传基准文档 (A)"
-        upload-hint="选择用于对照的原始 .docx 文件"
-        waiting-text="基准文档已就绪，请上传右侧修订文档后开始比对"
+        :empty-label="i18n.app.documents.A.emptyLabel"
+        :reupload-title="i18n.app.documents.A.reuploadTitle"
+        :upload-title="i18n.app.documents.A.uploadTitle"
+        :upload-hint="i18n.app.documents.A.uploadHint"
+        :waiting-text="i18n.app.documents.A.waitingText"
         :status="documents.A.status"
         :error-message="documents.A.error"
         :has-result="hasResult"
@@ -53,17 +53,17 @@
       <DocumentPane
         ref="paneB"
         side-class="side-revision"
-        title="修订文档 (B)"
+        :title="i18n.app.documents.B.title"
         :file-name="documents.B.name"
         :file-size="documents.B.size"
         :text-length="documents.B.textLength"
         :image-count="documents.B.imageCount"
         :warnings="documents.B.warnings"
-        empty-label="未上传修订文档"
-        reupload-title="重新选择修订文档"
-        upload-title="上传修订文档 (B)"
-        upload-hint="选择需要核对的新版 .docx 文件"
-        waiting-text="修订文档已就绪，请上传左侧基准文档后开始比对"
+        :empty-label="i18n.app.documents.B.emptyLabel"
+        :reupload-title="i18n.app.documents.B.reuploadTitle"
+        :upload-title="i18n.app.documents.B.uploadTitle"
+        :upload-hint="i18n.app.documents.B.uploadHint"
+        :waiting-text="i18n.app.documents.B.waitingText"
         :status="documents.B.status"
         :error-message="documents.B.error"
         :has-result="hasResult"
@@ -80,6 +80,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { useI18n } from '@/i18n';
 import AppHeader from './components/AppHeader.vue';
 import CompareToast from './components/CompareToast.vue';
 import DiffNavigator from './components/DiffNavigator.vue';
@@ -121,6 +122,8 @@ type DocumentState = {
   error: string;
 };
 
+type ErrorKind = 'invalidType' | 'fileTooLarge' | 'emptyFile' | 'parseFailed';
+
 const EMPTY_DIFF_SUMMARY: DiffSummary = {
   total: 0,
   inserted: 0,
@@ -149,6 +152,7 @@ const diffGranularity = ref<DiffGranularity>('semantic');
 
 const paneA = ref<DocumentPaneExpose | null>(null);
 const paneB = ref<DocumentPaneExpose | null>(null);
+const { locale, messages: i18n } = useI18n();
 
 let activeDriver: PaneKey | null = null;
 let alignmentAnchors: AlignmentAnchor[] = [];
@@ -158,6 +162,8 @@ let compareNoticeTimer: number | null = null;
 let resizeTimer: number | null = null;
 let compareRunId = 0;
 const fileLoadIds: Record<PaneKey, number> = { A: 0, B: 0 };
+const documentErrors = reactive<Partial<Record<PaneKey, { kind: ErrorKind; detail?: string }>>>({});
+const compareErrorDetail = ref('');
 
 const ready = computed(() => documents.A.status === 'ready' && documents.B.status === 'ready');
 const totalDiffs = computed(() => diffSummary.value.total);
@@ -187,18 +193,21 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
   const documentState = documents[key];
   const loadId = ++fileLoadIds[key];
 
-  markDocumentParsing(documentState, file);
+  markDocumentParsing(key, documentState, file);
   clearCompareResult();
 
   try {
-    const parsed = await parseDocx(file);
+    const parsed = await parseDocx(file, {
+      embeddedImageAlt: i18n.value.documentPane.embeddedImageAlt,
+      emptyDocumentHtml: i18n.value.documentPane.emptyDocumentHtml
+    });
     // Ignore stale parse results when the user replaces a file before parsing finishes.
     if (loadId !== fileLoadIds[key]) return;
 
     applyParsedDocument(documentState, parsed);
 
     if (parsed.warnings.length > 0) {
-      showCompareNotice(`${file.name} 解析完成，存在 ${parsed.warnings.length} 条转换提示`);
+      showCompareNotice(i18n.value.app.notices.parseCompleteWithWarnings(file.name, parsed.warnings.length));
     }
 
     if (ready.value) void compare();
@@ -207,44 +216,47 @@ async function handleFile(key: PaneKey, file: File): Promise<void> {
 
     documentState.status = 'error';
     const message = error instanceof Error ? error.message : String(error);
-    documentState.error = `无法解析该 DOCX 文件。${message}`;
-    showCompareNotice('文档解析失败，请检查文件后重试');
+    documentErrors[key] = { kind: 'parseFailed', detail: message };
+    documentState.error = resolveDocumentError('parseFailed', message);
+    showCompareNotice(i18n.value.app.notices.parseFailed);
   }
 }
 
-function validateDocxFile(file: File): string {
+function validateDocxFile(file: File): ErrorKind | '' {
   if (!file.name.toLowerCase().endsWith('.docx')) {
-    return '仅支持上传 .docx 文件，请重新选择文档。';
+    return 'invalidType';
   }
 
   if (file.size > MAX_DOCX_SIZE) {
-    return '文件超过 25 MB。建议压缩图片或拆分文档后再上传。';
+    return 'fileTooLarge';
   }
 
   if (file.size === 0) {
-    return '文件内容为空，请重新选择有效文档。';
+    return 'emptyFile';
   }
 
   return '';
 }
 
-function setDocumentError(key: PaneKey, file: File, message: string): void {
+function setDocumentError(key: PaneKey, file: File, errorKind: ErrorKind): void {
   fileLoadIds[key]++;
   const documentState = documents[key];
 
   documentState.name = file.name;
   documentState.size = file.size;
   documentState.status = 'error';
-  documentState.error = message;
+  documentErrors[key] = { kind: errorKind };
+  documentState.error = resolveDocumentError(errorKind);
   resetDocumentContent(documentState);
-  showCompareNotice(message);
+  showCompareNotice(documentState.error);
 }
 
-function markDocumentParsing(documentState: DocumentState, file: File): void {
+function markDocumentParsing(key: PaneKey, documentState: DocumentState, file: File): void {
   documentState.name = file.name;
   documentState.size = file.size;
   documentState.status = 'parsing';
   documentState.error = '';
+  delete documentErrors[key];
   resetDocumentContent(documentState);
 }
 
@@ -268,8 +280,21 @@ function resetDocumentContent(documentState: DocumentState): void {
 watch([diffGranularity, ignoreSpaces, ignoreFullHalfWidth, ignoreCase], () => {
   if (!ready.value) return;
 
-  showCompareNotice('设置已更新，正在重新比对...');
+  showCompareNotice(i18n.value.app.notices.settingsUpdated);
   void compare(true);
+});
+
+watch(locale, () => {
+  syncDocumentLocale();
+  compareError.value = compareErrorDetail.value
+    ? i18n.value.app.errors.compareFailed(compareErrorDetail.value)
+    : '';
+
+  (Object.keys(documents) as PaneKey[]).forEach((key) => {
+    const errorState = documentErrors[key];
+    if (!errorState || documents[key].status !== 'error') return;
+    documents[key].error = resolveDocumentError(errorState.kind, errorState.detail);
+  });
 });
 
 function showCompareNotice(message: string): void {
@@ -291,6 +316,7 @@ function clearCompareResult(): void {
 
 function resetCompareState(): void {
   compareError.value = '';
+  compareErrorDetail.value = '';
   hasResult.value = false;
   diffSummary.value = { ...EMPTY_DIFF_SUMMARY };
   currentDiffIndex.value = 0;
@@ -306,6 +332,7 @@ async function compare(showDoneNotice = false): Promise<void> {
   cancelPendingTextDiffs();
   comparing.value = true;
   compareError.value = '';
+  compareErrorDetail.value = '';
 
   try {
     await nextTick();
@@ -336,13 +363,14 @@ async function compare(showDoneNotice = false): Promise<void> {
     if (runId !== compareRunId) return;
 
     const message = error instanceof Error ? error.message : String(error);
-    compareError.value = `文档比对失败：${message}`;
-    showCompareNotice('文档比对失败，请调整文件或设置后重试');
+    compareErrorDetail.value = message;
+    compareError.value = i18n.value.app.errors.compareFailed(message);
+    showCompareNotice(i18n.value.app.notices.compareFailed);
     console.error(error);
   } finally {
     if (runId === compareRunId) {
       comparing.value = false;
-      if (showDoneNotice) showCompareNotice('已根据最新设置刷新比对结果');
+      if (showDoneNotice) showCompareNotice(i18n.value.app.notices.compareRefreshed);
     }
   }
 }
@@ -576,7 +604,26 @@ function handleResize(): void {
   }, 150);
 }
 
+function resolveDocumentError(kind: ErrorKind, detail?: string): string {
+  switch (kind) {
+    case 'invalidType':
+      return i18n.value.app.errors.invalidType;
+    case 'fileTooLarge':
+      return i18n.value.app.errors.fileTooLarge;
+    case 'emptyFile':
+      return i18n.value.app.errors.emptyFile;
+    case 'parseFailed':
+      return i18n.value.app.errors.parseFailed(detail ?? '');
+  }
+}
+
+function syncDocumentLocale(): void {
+  document.documentElement.lang = locale.value;
+  document.title = i18n.value.app.documentTitle;
+}
+
 onMounted(() => {
+  syncDocumentLocale();
   window.addEventListener('resize', handleResize);
 });
 

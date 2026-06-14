@@ -3,29 +3,29 @@
     <div class="stat-banner">
       <div class="radar-dot" :class="{ clean: summary.total === 0 }"></div>
       <template v-if="summary.total === 0">
-        <span class="pure-text">✅ 比对完成：当前设置下，两份文档未发现文本差异。</span>
-        <span class="summary-chip similarity" title="基于当前归一化文本的编辑距离计算">
-          相似度 <strong>{{ similarityPercent }}</strong>
+        <span class="pure-text">{{ i18n.diffNavigator.noDiffs }}</span>
+        <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
+          {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
         </span>
       </template>
       <template v-else>
-        <span class="pure-text">🔎 比对完成：发现 <strong class="diff-count">{{ summary.total }}</strong> 处文本差异</span>
-        <span class="summary-chip similarity" title="基于当前归一化文本的编辑距离计算">
-          相似度 <strong>{{ similarityPercent }}</strong>
+        <span class="pure-text">{{ i18n.diffNavigator.withDiffsBefore }} <strong class="diff-count">{{ summary.total }}</strong> {{ i18n.diffNavigator.withDiffsAfter(summary.total) }}</span>
+        <span class="summary-chip similarity" :title="i18n.diffNavigator.similarityTitle">
+          {{ i18n.diffNavigator.similarity }} <strong>{{ similarityPercent }}</strong>
         </span>
-        <span class="summary-chip modified">修改 {{ summary.modified }}</span>
-        <span class="summary-chip inserted">新增 {{ summary.inserted }}</span>
-        <span class="summary-chip deleted">删除 {{ summary.deleted }}</span>
+        <span class="summary-chip modified">{{ i18n.diffNavigator.modified }} {{ summary.modified }}</span>
+        <span class="summary-chip inserted">{{ i18n.diffNavigator.inserted }} {{ summary.inserted }}</span>
+        <span class="summary-chip deleted">{{ i18n.diffNavigator.deleted }} {{ summary.deleted }}</span>
         <div
           class="diff-progress"
           role="progressbar"
-          :aria-label="`当前差异位置：${currentDiffIndex} / ${summary.total}`"
+          :aria-label="i18n.diffNavigator.currentPositionAria(currentDiffIndex, summary.total)"
           :aria-valuemin="1"
           :aria-valuemax="summary.total"
           :aria-valuenow="currentDiffIndex"
         >
           <div class="diff-progress-meta">
-            <span>差异 {{ currentDiffIndex }} <span class="slash">/</span> {{ summary.total }}</span>
+            <span>{{ i18n.diffNavigator.difference }} {{ currentDiffIndex }} <span class="slash">/</span> {{ summary.total }}</span>
             <strong>{{ progressPercent }}%</strong>
           </div>
           <div class="diff-progress-track">
@@ -37,22 +37,22 @@
 
     <div class="nav-triggers" v-if="summary.total > 0">
       <button class="btn-action-nav" @click="$emit('previous')" :disabled="currentDiffIndex <= 1">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>上一处
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>{{ i18n.diffNavigator.previous }}
       </button>
       <button class="btn-action-nav" @click="$emit('next')" :disabled="currentDiffIndex >= summary.total">
-        下一处<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        {{ i18n.diffNavigator.next }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </button>
       <div class="panel-divider"></div>
       <button
         type="button"
         class="ios-toggle-shell"
         :class="{ active: syncScroll }"
-        title="开启后，两侧文档会按差异位置同步滚动，便于长文对照"
+        :title="i18n.diffNavigator.syncScrollTitle"
         :aria-pressed="syncScroll"
         @click="$emit('toggle-sync')"
       >
         <div class="ios-switch"></div>
-        <span>同步滚动</span>
+        <span>{{ i18n.diffNavigator.syncScroll }}</span>
       </button>
     </div>
   </div>
@@ -60,6 +60,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/i18n';
 import type { DiffSummary } from '@/types/diff';
 
 const props = defineProps<{
@@ -74,11 +75,13 @@ defineEmits<{
   'toggle-sync': [];
 }>();
 
-const percentFormatter = new Intl.NumberFormat('zh-CN', {
+const { locale, messages: i18n } = useI18n();
+
+const percentFormatter = computed(() => new Intl.NumberFormat(locale.value, {
   style: 'percent',
   minimumFractionDigits: 1,
   maximumFractionDigits: 1
-});
+}));
 
 const progressPercent = computed(() => {
   if (props.summary.total <= 0) return 0;
@@ -87,7 +90,7 @@ const progressPercent = computed(() => {
 
 const progressWidth = computed(() => `${progressPercent.value}%`);
 
-const similarityPercent = computed(() => percentFormatter.format(props.summary.similarity));
+const similarityPercent = computed(() => percentFormatter.value.format(props.summary.similarity));
 </script>
 
 <style scoped>

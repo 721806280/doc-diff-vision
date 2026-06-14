@@ -18,58 +18,87 @@
 
     <div class="control-core">
       <div class="granularity-panel">
-        <label class="panel-label" for="diff-granularity">比对粒度</label>
+        <label class="panel-label" for="diff-granularity">{{ i18n.header.diffGranularityLabel }}</label>
         <div class="premium-select-wrapper">
           <select id="diff-granularity" :value="diffGranularity" class="classic-select" @change="emitGranularity">
-            <option value="semantic">语义级 - 适合快速审阅</option>
-            <option value="word">词组级 - 适合内容核对</option>
-            <option value="char">字符级 - 适合精细校对</option>
+            <option value="semantic">{{ i18n.header.granularityOptions.semantic }}</option>
+            <option value="word">{{ i18n.header.granularityOptions.word }}</option>
+            <option value="char">{{ i18n.header.granularityOptions.char }}</option>
           </select>
         </div>
       </div>
 
       <div class="panel-divider"></div>
 
-      <div class="compare-settings" aria-label="比对设置">
+      <div class="compare-settings" :aria-label="i18n.header.compareSettingsAria">
         <button
           type="button"
           class="capsule-node"
           :class="{ active: ignoreSpaces }"
-          title="忽略普通空格、全角空格、制表符等版式差异"
+          :title="i18n.header.ignoreSpacesTitle"
           :aria-pressed="ignoreSpaces"
           @click="toggleIgnoreSpaces"
         >
           <div class="node-pulse"></div>
-          <span>忽略空白</span>
+          <span>{{ i18n.header.ignoreSpaces }}</span>
         </button>
         <button
           type="button"
           class="capsule-node"
           :class="{ active: ignoreFullHalfWidth }"
-          title="统一全角与半角字母、数字和常见符号后再比对"
+          :title="i18n.header.ignoreFullHalfWidthTitle"
           :aria-pressed="ignoreFullHalfWidth"
           @click="$emit('update:ignoreFullHalfWidth', !ignoreFullHalfWidth)"
         >
           <div class="node-pulse"></div>
-          <span>统一全半角</span>
+          <span>{{ i18n.header.ignoreFullHalfWidth }}</span>
         </button>
         <button
           type="button"
           class="capsule-node"
           :class="{ active: ignoreCase }"
-          title="忽略英文字母大小写差异"
+          :title="i18n.header.ignoreCaseTitle"
           :aria-pressed="ignoreCase"
           @click="$emit('update:ignoreCase', !ignoreCase)"
         >
           <div class="node-pulse"></div>
-          <span>忽略大小写</span>
+          <span>{{ i18n.header.ignoreCase }}</span>
         </button>
+      </div>
+    </div>
+
+    <div class="language-control" :title="i18n.header.languageLabel">
+      <svg class="language-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M2 12h20"></path>
+        <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
+        <path d="M12 2a15.3 15.3 0 0 0 0 20"></path>
+      </svg>
+      <div class="lang-switch" role="radiogroup" :aria-label="i18n.header.languageLabel">
+        <span class="lang-switch__thumb" :class="{ 'is-second': locale === 'zh-CN' }" aria-hidden="true"></span>
+        <button
+          type="button"
+          role="radio"
+          class="lang-switch__option"
+          :class="{ active: locale === 'en' }"
+          :aria-checked="locale === 'en'"
+          @click="setLocale('en')"
+        >{{ i18n.header.english }}</button>
+        <button
+          type="button"
+          role="radio"
+          class="lang-switch__option"
+          :class="{ active: locale === 'zh-CN' }"
+          :aria-checked="locale === 'zh-CN'"
+          @click="setLocale('zh-CN')"
+        >{{ i18n.header.chinese }}</button>
       </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from '@/i18n';
 import type { DiffGranularity } from '@/types/diff';
 
 const props = defineProps<{
@@ -85,6 +114,8 @@ const emit = defineEmits<{
   'update:ignoreFullHalfWidth': [value: boolean];
   'update:ignoreCase': [value: boolean];
 }>();
+
+const { locale, messages: i18n, setLocale } = useI18n();
 
 function emitGranularity(event: Event): void {
   emit('update:diffGranularity', (event.target as HTMLSelectElement).value as DiffGranularity);
@@ -251,6 +282,87 @@ function toggleIgnoreSpaces(): void {
   border: 1px solid var(--border-subtle);
 }
 
+.language-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.language-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.language-control:hover .language-icon,
+.language-control:focus-within .language-icon {
+  color: var(--accent);
+}
+
+/* Segmented language toggle. The container intentionally has no border:
+   the sliding thumb is sized at calc(50% - 3px) so it lands exactly on each
+   half of the padded content box, and a border would offset that math. */
+.lang-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.85);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.lang-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(99, 102, 241, 0.12);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lang-switch__thumb.is-second {
+  transform: translateX(100%);
+}
+
+.lang-switch__option {
+  position: relative;
+  z-index: 1;
+  min-width: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.lang-switch__option:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.lang-switch__option.active {
+  color: var(--accent);
+}
+
+.lang-switch__option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 .capsule-node {
   display: flex;
   align-items: center;
@@ -323,8 +435,8 @@ function toggleIgnoreSpaces(): void {
   }
 
   .control-core {
-    justify-content: space-between;
-    flex: 1 1 520px;
+    justify-content: flex-end;
+    flex: 1 1 460px;
     width: auto;
     gap: 6px;
   }
@@ -349,12 +461,24 @@ function toggleIgnoreSpaces(): void {
     font-size: 0.65rem;
     gap: 4px;
   }
+
+  .language-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .lang-switch__option {
+    min-width: 40px;
+    font-size: 0.65rem;
+    padding: 3px 5px;
+  }
 }
 
 @media (max-width: 820px) {
   .app-toolbar {
-    padding: 6px 8px;
-    gap: 6px;
+    padding: 6px 8px 7px;
+    gap: 6px 8px;
+    align-items: center;
   }
 
   .brand-logo-glow {
@@ -377,10 +501,14 @@ function toggleIgnoreSpaces(): void {
   }
 
   .control-core {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
+    order: 3;
+    flex-wrap: nowrap;
     align-items: center;
+    flex: 1 1 100%;
+    width: 100%;
     gap: 6px;
+    justify-content: space-between;
+    overflow: visible;
   }
 
   .panel-divider {
@@ -389,24 +517,32 @@ function toggleIgnoreSpaces(): void {
 
   .granularity-panel {
     justify-content: space-between;
-    flex: 1 1 220px;
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .compare-settings {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    justify-content: stretch;
-  }
-
-  .capsule-node {
-    flex: 1 1 0;
-    justify-content: center;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    margin-left: auto;
   }
 
   .classic-select {
-    width: 100%;
-    min-width: 100px;
-    max-width: none;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+  }
+
+  .language-control {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .capsule-node {
+    flex: 0 0 auto;
+    justify-content: center;
+    min-width: max-content;
   }
 }
 
@@ -415,27 +551,87 @@ function toggleIgnoreSpaces(): void {
     gap: 8px;
   }
 
-  .control-core {
-    align-items: stretch;
-  }
-
   .granularity-panel {
-    flex: 1 1 100%;
+    align-items: center;
+    gap: 6px;
   }
 
   .compare-settings {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 3px;
+    gap: 1px;
+  }
+
+  .panel-label {
+    display: inline;
+    font-size: 0.62rem;
+  }
+
+  .classic-select {
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    font-size: 0.62rem;
+    padding: 4px 18px 4px 8px;
+  }
+
+  .premium-select-wrapper::after {
+    right: 8px;
+  }
+
+  .lang-switch__option {
+    min-width: 38px;
+    font-size: 0.62rem;
+    padding: 3px 4px;
+  }
+
+  .language-icon {
+    width: 12px;
+    height: 12px;
   }
 
   .capsule-node {
-    padding: 4px 6px;
-    font-size: 0.62rem;
-    min-width: 0;
+    padding: 4px 5px;
+    font-size: 0.59rem;
+    gap: 0;
   }
 
   .node-pulse {
     display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-toolbar {
+    padding: 5px 6px;
+  }
+
+  .brand-logo-glow {
+    display: none;
+  }
+
+  .brand-text h1 {
+    font-size: 0.78rem;
+  }
+
+  .language-icon {
+    display: none;
+  }
+
+  .lang-switch__option {
+    min-width: 34px;
+    font-size: 0.6rem;
+    padding: 3px 4px;
+  }
+
+  .capsule-node {
+    font-size: 0.56rem;
+    padding: 4px 3px;
+  }
+
+  .classic-select {
+    width: 172px;
+    min-width: 172px;
+    max-width: 172px;
   }
 }
 </style>

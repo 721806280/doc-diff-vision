@@ -31,7 +31,7 @@ export async function createTextDiffsAsync(
   } catch (error) {
     if (error instanceof DiffCanceledError) throw error;
 
-    console.warn('[文档比对 Worker 回退]', error);
+    console.warn('[Document diff worker fallback]', error);
     return createTextDiffs(originalText, revisedText, granularity);
   }
 }
