@@ -311,6 +311,7 @@ function isStructuredTokenWhitespace(textChunks: string[], text: string, whitesp
   const leftToken = readStructuredTokenLeft(textChunks);
   const rightToken = readStructuredTokenRight(text, whitespaceIndex + 1);
   if (!leftToken || !rightToken) return false;
+  if (EMAIL_PATTERN.test(leftToken)) return false;
 
   const joined = `${leftToken}${rightToken}`;
   if (EMAIL_PATTERN.test(joined)) return true;
